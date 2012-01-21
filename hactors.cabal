@@ -3,6 +3,9 @@ name:                                   hactors
 version:                                0.0.1
 synopsis:                               Prototype for simple actors in haskell.
 category:                               Concurrency
+description:
+
+  Prototype for simple actors in haskell.
 
 author:                                 Heka Treep
 maintainer:                             Heka Treep <zena.treep@gmail.com>
@@ -12,10 +15,11 @@ license:                                MIT
 license-file:                           LICENSE
 
 stability:                              Experimental
-cabal-version:                          >= 1.2
+cabal-version:                          >= 1.6
 build-type:                             Simple
 
 extra-source-files:                     Makefile
+                                        README
 
 source-repository                       head
   type:                                 git
