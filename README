@@ -1,0 +1,8 @@
+
+This is a tiny prototype of the actor model in haskell.
+
+ * Actors represented as VM's (lightweight) processes.
+
+ * Messags handled as asynchronous exceptions.
+
+Waiting for some examples.
