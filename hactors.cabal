@@ -31,5 +31,5 @@ library
                                         ScopedTypeVariables
                                         FlexibleInstances
                                         UndecidableInstances
-  build-depends:                        base
+  build-depends:                        base == 4.*
   exposed-modules:                      Control.Concurrent.Actor
