@@ -15,8 +15,6 @@ import Control.Monad
 import Control.Concurrent
 import Control.Exception
 
-import System.IO.Unsafe
-
 -- -----------------------------------------------------------------------------
 -- * Processes.
 
@@ -72,7 +70,7 @@ instance (Show a, Typeable a) => Exception a
 instance Exception m => Message m
 
 infixr 0 ?
-infixr 1 !
+infixr 1 ! , <!
 
 -- | Perform some action and wait for an asynchronous message.
 (?) :: Message m => forall a. IO a -> (m -> IO a) -> IO a
@@ -83,15 +81,20 @@ receive :: Message m => forall a. (m -> IO a) -> IO a
 receive = (?) wait
 
 -- | Send a message to the process.
--- 
--- @send@ is referential transparent, so we do @unsafePerformIO@.
--- 
-send :: Message m => IO Process -> m -> m
-send p m = unsafePerformIO $ do
+send :: Message m => IO Process -> m -> IO m
+send p m = do
   p' <- p
   throwTo p' m
   return m
 
 -- | Infix alias for @send@.
-(!) :: Message m => IO Process -> m -> m
+(!) :: Message m => IO Process -> m -> IO m
 (!) = send
+
+-- | Send a message from inside the IO to the process.
+sendIO :: Message m => IO Process -> IO m -> IO m
+sendIO p m = m >>= (!) p
+
+-- | Infix alias for @sendIO@.
+(<!) :: Message m => IO Process -> IO m -> IO m
+(<!) = sendIO
