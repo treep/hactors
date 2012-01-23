@@ -1,6 +1,10 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables,
-             FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE Rank2Types, FlexibleInstances, UndecidableInstances #-}
 
+-- |
+-- Implementation of the actor model on top of GHC's concurrency.
+-- 
+-- The API mimics Erlang's concurrency primitives, with slight differences.
+-- 
 module Control.Concurrent.Actor where
 
 import Prelude hiding ( catch )
@@ -11,68 +15,83 @@ import Control.Monad
 import Control.Concurrent
 import Control.Exception
 
+import System.IO.Unsafe
+
 -- -----------------------------------------------------------------------------
 -- * Processes.
 
-type Name = String
-
--- | Process is just a VM's thread.
-data Process = Process
-  { pname :: Name                       -- ^ Process name.
-  , pid   :: ThreadId                   -- ^ Process ID.
-  } deriving ( Show, Eq, Typeable )
-
--- | Create a new named process from an action (call to @forkIO@).
-actor :: Name -> IO () -> IO Process
-actor name action = forkIO action >>= return . Process name
-
--- | Create a new anonymous process from an action (call to @forkIO@).
-spawn :: IO () -> IO Process
-spawn = actor "anonymous"
+-- | The definition -- process is a VM's thread.
+type Process = ThreadId
 
 -- | Get the current process.
 self :: IO Process
-self = myThreadId >>= return . Process "me" 
+self = myThreadId
 
 -- | Kill the process.
 kill :: Process -> IO ()
-kill = killThread . pid
+kill = killThread
 
 -- | Finish the current process.
 exit :: IO ()
 exit = self >>= kill
 
+-- | Create a new process from a function, send an initial message to process 
+-- via function argument.
+-- 
+-- This function perform call to @forkIO@.
+-- 
+actor :: forall t. t -> (t -> IO ()) -> IO Process
+actor message action = forkIO $ action message >>= return
+
+-- | Create a new process from a function.
+-- 
+-- This function perform call to @forkIO@.
+-- 
+spawn :: IO () -> IO Process
+spawn = actor () . const
+
+-- | Perform non busy waiting for a given number of microseconds in the current
+-- process.
+sleep :: Int -> IO ()
+sleep = threadDelay
+
+-- | Perform an infinite non busy waiting in the current process. This waiting
+-- may be interrupted by a message.
+wait :: forall a. IO a
+wait = forever $ sleep slice
+  where slice = maxBound :: Int
+
 -- -----------------------------------------------------------------------------
 -- * Messages.
+
+-- | The definition -- message is an exception.
+class Exception m => Message m
+
+-- | Everything is a message.
+instance (Show a, Typeable a) => Exception a
+instance Exception m => Message m
 
 infixr 0 ?
 infixr 1 !
 
-threadDelaySlice :: Int
-threadDelaySlice = (10 :: Int) ^ (9 :: Int)
+-- | Perform some action and wait for an asynchronous message.
+(?) :: Message m => forall a. IO a -> (m -> IO a) -> IO a
+(?) = catch
 
--- | The receive / send abstract interface.
-class Message m where
-  -- | Do some action and wait for asynchronous message.
-  (?) :: IO a -> (m -> IO a) -> IO a
-  -- | Just wait for asynchronous message.
-  receive :: (m -> IO a) -> IO a
-  receive f = forever (threadDelay threadDelaySlice) ? f
-  -- | Send a message to process.
-  send :: Process -> m -> IO ()
-  -- | Infix alias for @send@.
-  (!) :: Process -> m -> IO ()
-  (!) = send
+-- | Just wait for an asynchronous message.
+receive :: Message m => forall a. (m -> IO a) -> IO a
+receive = (?) wait
 
--- | Messages handled as exceptions.
-instance Exception m => Message m where
-  (?)  = catch
-  send = throwTo . pid
+-- | Send a message to the process.
+-- 
+-- @send@ is referential transparent, so we do @unsafePerformIO@.
+-- 
+send :: Message m => IO Process -> m -> m
+send p m = unsafePerformIO $ do
+  p' <- p
+  throwTo p' m
+  return m
 
--- | @String@s is a messages.
-instance Exception String
-
-{-
-  Thus, any (non-polymorphic?) data type can be a message. Process itself can 
-  be a message.
- -}
+-- | Infix alias for @send@.
+(!) :: Message m => IO Process -> m -> m
+(!) = send

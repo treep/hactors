@@ -1,11 +1,15 @@
 
 name:                                   hactors
 version:                                0.0.1
-synopsis:                               Prototype for simple actors in haskell.
+synopsis:                               Practical actors for Haskell.
 category:                               Concurrency
 description:
 
-  Prototype for simple actors in haskell.
+  Practical actors for Haskell.
+
+  This library implement the actor model on top of GHC's concurrency. Actors
+  works as VM's lightweight processes and messages handled as asynchronous
+  exceptions.
 
 author:                                 Heka Treep
 maintainer:                             Heka Treep <zena.treep@gmail.com>
@@ -26,9 +30,8 @@ source-repository                       head
   location:                             git://github.com/treep/hactors.git
 
 library
-  ghc-options:                          -Wall
-  extensions:                           DeriveDataTypeable
-                                        ScopedTypeVariables
+  ghc-options:                          -Wall -fno-warn-orphans
+  extensions:                           Rank2Types
                                         FlexibleInstances
                                         UndecidableInstances
   build-depends:                        base == 4.*
