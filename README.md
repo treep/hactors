@@ -6,6 +6,11 @@ This library is about to implement the actor model on top of GHC's concurrency.
 Actors works as VM's lightweight processes and messages handled as asynchronous
 exceptions.
 
+XXX
+===
+
+Exceptions kill threads. What to do now? Signals?
+
 Usage
 =====
 
@@ -169,6 +174,9 @@ it's turns to:
     Heh, we're smarter than you humans.
 
 looks like it works.
+
+XXX: No, it's don't. Every message run a new process in above example. But a
+single exception kill a thread.
 
 Issues
 ======
