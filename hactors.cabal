@@ -7,8 +7,8 @@ description:
 
   Practical actors for Haskell.
 
-  This library implement the actor model on top of GHC's concurrency. Actors
-  works as VM's lightweight processes and messages handled as asynchronous
+  This library is about to implement the actor model on top of GHC's concurrency.
+  Actors works as VM's lightweight processes and messages handled as asynchronous
   exceptions.
 
 author:                                 Heka Treep
@@ -23,7 +23,8 @@ cabal-version:                          >= 1.6
 build-type:                             Simple
 
 extra-source-files:                     Makefile
-                                        README
+                                        README.md
+                                        Control/Concurrent/Actor/Examples.hs
 
 source-repository                       head
   type:                                 git
