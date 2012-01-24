@@ -80,24 +80,37 @@ spawn = actor () . const
 -- -----------------------------------------------------------------------------
 -- * Messages.
 
+infixl 1 ?, <?
+infixr 2 !, <!, !>, <!>
+
 -- | Wait for an asynchronous message on the actor's channel.
 receive :: Actor m -> (m -> IO a) -> IO b
 receive a f = forever $ atomically (readTChan $ mbox a) >>= f
 
-infixr 1 !, <!, !>, <!>
+-- | Infix variant of @receive@.
+(?) :: Actor m -> (m -> IO a) -> IO b
+(?) = receive
+
+-- | Variant of (?) with actor inside the IO.
+(<?) :: IO (Actor m) -> (m -> IO a) -> IO b
+a <? f = a >>= \a' -> a' ? f
 
 -- | Send a message to the actor.
+send :: Actor m -> m -> IO m
+send a m = atomically $ mbox a `writeTChan` m >> return m
+
+-- | Infix variant of @send@.
 (!) :: Actor m -> m -> IO m
-act ! msg = atomically $ mbox act `writeTChan` msg >> return msg
+(!) = send
 
 -- | Variant of (!) with actor inside the IO.
 (<!) :: IO (Actor m) -> m -> IO m
-act <! msg = act >>= \act' -> act' ! msg
+a <! m = a >>= \a' -> a' ! m
 
 -- | Variant of (!) with message inside the IO.
 (!>) :: Actor m -> IO m -> IO m
-act !> msg = msg >>= \msg' -> act ! msg'
+a !> m = m >>= \m' -> a ! m'
 
 -- | Variant of (!) with actor and message inside the IO.
 (<!>) :: IO (Actor m) -> IO m -> IO m
-act <!> msg = act >>= \act' -> msg >>= \msg' -> act' ! msg'
+a <!> m = a >>= \a' -> m >>= \m' -> a' ! m'
