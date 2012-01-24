@@ -1,24 +1,21 @@
-{-# LANGUAGE Rank2Types, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE Rank2Types #-}
 
 -- |
--- Implementation of the actor model on top of GHC's concurrency.
+-- Implementation of the actor model on top of the GHC's concurrency.
 -- 
 -- The API mimics Erlang's concurrency primitives, with slight differences.
 -- 
 module Control.Concurrent.Actor where
 
-import Prelude hiding ( catch )
-
-import Data.Typeable
-
 import Control.Monad
+import Control.Monad.STM
 import Control.Concurrent
-import Control.Exception
+import Control.Concurrent.STM.TChan
 
 -- -----------------------------------------------------------------------------
 -- * Processes.
 
--- | The definition -- process is a VM's thread.
+-- | The process is a VM's thread.
 type Process = ThreadId
 
 -- | Get the current process.
@@ -26,75 +23,81 @@ self :: IO Process
 self = myThreadId
 
 -- | Kill the process.
-kill :: Process -> IO ()
-kill = killThread
+kill :: IO Process -> IO ()
+kill = (>>= killThread)
 
 -- | Finish the current process.
 exit :: IO ()
-exit = self >>= kill
-
--- | Create a new process from a function, send an initial message to process 
--- via function argument.
--- 
--- This function perform call to @forkIO@.
--- 
-actor :: forall t. t -> (t -> IO ()) -> IO Process
-actor message action = forkIO $ action message >>= return
-
--- | Create a new process from a function.
--- 
--- This function perform call to @forkIO@.
--- 
-spawn :: IO () -> IO Process
-spawn = actor () . const
+exit = kill self
 
 -- | Perform non busy waiting for a given number of microseconds in the current
 -- process.
 sleep :: Int -> IO ()
 sleep = threadDelay
 
--- | Perform an infinite non busy waiting in the current process. This waiting
--- may be interrupted by a message.
-wait :: forall a. IO a
+-- | Perform an infinite non busy waiting in the current process.
+wait :: IO ()
 wait = forever $ sleep slice
   where slice = maxBound :: Int
 
 -- -----------------------------------------------------------------------------
+-- * The message box.
+
+-- | The message box is represented by the STM's channel.
+type MBox m = TChan m
+
+-- -----------------------------------------------------------------------------
+-- * Actors.
+
+-- | The actor is a process associated with the message box.
+-- 
+-- Note that the actor is parameterized by the type of message that it can
+-- accept.
+data Actor m = Actor
+  { proc :: Process
+  , mbox :: MBox m
+  }
+
+-- | Create a new actor from a function, send the initial message and the 
+-- message box to this actor via function arguments.
+-- 
+-- This function calls @forkIO@.
+-- 
+actor :: forall t m a. t -> (t -> MBox m -> IO a) -> IO (Actor m)
+actor i f = do
+  m <- newTChanIO
+  p <- forkIO $ f i m >> return ()
+  return $ Actor p m
+
+-- | Create a new actor from a function, send the message box to this actor via
+-- function arguments.
+-- 
+-- This function calls @forkIO@.
+-- 
+spawn :: forall m a. (MBox m -> IO a) -> IO (Actor m)
+spawn = actor () . const
+
+-- -----------------------------------------------------------------------------
 -- * Messages.
 
--- | The definition -- message is an exception.
-class Exception m => Message m
+-- | Wait for an asynchronous message on the actor's channel.
+receive :: Actor m -> (m -> IO a) -> IO b
+receive a f = forever $ atomically (readTChan $ mbox a) >>= f
 
--- | Everything is a message.
-instance (Show a, Typeable a) => Exception a
-instance Exception m => Message m
+infixr 1 !, <!, !>, <!>
 
-infixr 0 ?
-infixr 1 ! , <!
+-- | Send a message to the actor.
+(!) :: Actor m -> m -> IO m
+act ! msg = atomically $ mbox act `writeTChan` msg >> return msg
 
--- | Perform some action and wait for an asynchronous message.
-(?) :: Message m => forall a. IO a -> (m -> IO a) -> IO a
-(?) = catch
+-- | Variant of (!) with actor inside the IO.
+(<!) :: IO (Actor m) -> m -> IO m
+act <! msg = act >>= \act' -> act' ! msg
 
--- | Just wait for an asynchronous message.
-receive :: Message m => forall a. (m -> IO a) -> IO a
-receive = (?) wait
+-- | Variant of (!) with message inside the IO.
+(!>) :: Actor m -> IO m -> IO m
+act !> msg = msg >>= \msg' -> act ! msg'
 
--- | Send a message to the process.
-send :: Message m => IO Process -> m -> IO m
-send p m = do
-  p' <- p
-  throwTo p' m
-  return m
-
--- | Infix alias for @send@.
-(!) :: Message m => IO Process -> m -> IO m
-(!) = send
-
--- | Send a message from inside the IO to the process.
-sendIO :: Message m => IO Process -> IO m -> IO m
-sendIO p m = m >>= (!) p
-
--- | Infix alias for @sendIO@.
-(<!) :: Message m => IO Process -> IO m -> IO m
-(<!) = sendIO
+-- | Variant of (!) with actor and message inside the IO.
+(<!>) :: IO (Actor m) -> IO m -> IO m
+act <!> msg = act >>= \act' -> msg >>= \msg' -> act' ! msg'

@@ -1,15 +1,14 @@
 
 name:                                   hactors
-version:                                0.0.2
+version:                                0.0.3
 synopsis:                               Practical actors for Haskell.
 category:                               Concurrency
 description:
 
   Practical actors for Haskell.
 
-  This library is about to implement the actor model on top of GHC's concurrency.
-  Actors works as VM's lightweight processes and messages handled as asynchronous
-  exceptions.
+  This library is about to implement the Erlang-like actor model on top of the
+  GHC's concurrency.
 
 author:                                 Heka Treep
 maintainer:                             Heka Treep <zena.treep@gmail.com>
@@ -23,17 +22,13 @@ cabal-version:                          >= 1.6
 build-type:                             Simple
 
 extra-source-files:                     Makefile
-                                        README.md
-                                        Control/Concurrent/Actor/Examples.hs
 
 source-repository                       head
   type:                                 git
   location:                             git://github.com/treep/hactors.git
 
 library
-  ghc-options:                          -Wall -fno-warn-orphans
+  ghc-options:                          -Wall
   extensions:                           Rank2Types
-                                        FlexibleInstances
-                                        UndecidableInstances
-  build-depends:                        base == 4.*
+  build-depends:                        base == 4.*, stm == 2.2.*
   exposed-modules:                      Control.Concurrent.Actor
