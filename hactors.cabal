@@ -29,6 +29,5 @@ source-repository                       head
 
 library
   ghc-options:                          -Wall
-  extensions:                           Rank2Types
   build-depends:                        base == 4.*, stm == 2.2.*
   exposed-modules:                      Control.Concurrent.Actor

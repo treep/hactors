@@ -1,4 +1,3 @@
-{-# LANGUAGE Rank2Types #-}
 
 -- |
 -- Implementation of the actor model on top of the GHC's concurrency.
@@ -63,7 +62,7 @@ data Actor m = Actor
 -- 
 -- This function calls @forkIO@.
 -- 
-actor :: forall t m a. t -> (t -> MBox m -> IO a) -> IO (Actor m)
+actor :: t -> (t -> MBox m -> IO a) -> IO (Actor m)
 actor i f = do
   m <- newTChanIO
   p <- forkIO $ f i m >> return ()
@@ -74,7 +73,7 @@ actor i f = do
 -- 
 -- This function calls @forkIO@.
 -- 
-spawn :: forall m a. (MBox m -> IO a) -> IO (Actor m)
+spawn :: (MBox m -> IO a) -> IO (Actor m)
 spawn = actor () . const
 
 -- -----------------------------------------------------------------------------
