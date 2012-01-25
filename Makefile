@@ -3,8 +3,11 @@ all:
 	runhaskell Setup configure --user
 	runhaskell Setup build
 
-install:
+install: all
 	runhaskell Setup install
+
+haddock: all
+	cabal haddock
 
 sdist:
 	cabal sdist
