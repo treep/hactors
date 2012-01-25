@@ -10,6 +10,7 @@ import Control.Monad
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
+import Control.Exception
 
 -- -----------------------------------------------------------------------------
 -- * Processes.
@@ -114,3 +115,32 @@ a !> m = m >>= (a !)
 -- | Variant of (!) with the actor and the message inside the IO.
 (<!>) :: IO (Actor m) -> IO m -> IO m
 a <!> m = a >>= \a' -> m >>= (a' !)
+
+-- -----------------------------------------------------------------------------
+-- * Combine actors with messages.
+
+-- | Create a new receiving actor.
+-- 
+-- This function calls @forkIO@.
+-- 
+spawn_receive :: (m -> IO a) -> IO (Actor m)
+spawn_receive f = spawn (? f)
+
+-- -----------------------------------------------------------------------------
+-- * Fault tolerance.
+-- 
+-- Where "fault" means having an exception in the thread. Still, AFAIK GHC's
+-- runtime can't survive if some thread has segmentation fault (e.g. perform
+-- (unsafeCoerce id)).
+--
+
+-- | Perform an action ignoring any exception in it.
+tolerant :: IO () -> IO ()
+tolerant = handle $ \e -> let _ = e :: SomeException in return undefined
+
+-- | Perform an action, do @exit@ on exceptions.
+-- 
+-- XXX Bad name?
+-- 
+faultable :: IO () -> IO ()
+faultable = handle $ \e -> let _ = e :: SomeException in exit
