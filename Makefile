@@ -6,5 +6,8 @@ all:
 install:
 	runhaskell Setup install
 
+sdist:
+	cabal sdist
+
 clean:
 	rm -rf dist
