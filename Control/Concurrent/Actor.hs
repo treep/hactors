@@ -52,12 +52,13 @@ type MBox m = TChan m
 -- 
 -- Note that the actor is parameterized by the type of message that it can
 -- accept.
+-- 
 data Actor m = Actor
   { proc :: Process
   , mbox :: MBox m
   }
 
--- | Create a new actor from a function, send the initial message and the 
+-- | Create a new actor from a function, send the initial argument and the
 -- message box to this actor via function arguments.
 -- 
 -- This function calls @forkIO@.
@@ -69,7 +70,7 @@ actor i f = do
   return $ Actor p m
 
 -- | Create a new actor from a function, send the message box to this actor via
--- function arguments.
+-- function argument.
 -- 
 -- This function calls @forkIO@.
 -- 
@@ -82,17 +83,17 @@ spawn = actor () . const
 infixl 1 ?, <?
 infixr 2 !, <!, !>, <!>
 
--- | Wait for an asynchronous message on the actor's channel.
-receive :: Actor m -> (m -> IO a) -> IO b
-receive a f = forever $ atomically (readTChan $ mbox a) >>= f
+-- | Wait for an asynchronous message in the message box.
+receive :: MBox m -> (m -> IO a) -> IO b
+receive mb f = forever $ atomically (readTChan mb) >>= f
 
 -- | Infix variant of @receive@.
-(?) :: Actor m -> (m -> IO a) -> IO b
+(?) :: MBox m -> (m -> IO a) -> IO b
 (?) = receive
 
--- | Variant of (?) with actor inside the IO.
-(<?) :: IO (Actor m) -> (m -> IO a) -> IO b
-a <? f = a >>= \a' -> a' ? f
+-- | Variant of (?) with the message box inside the IO.
+(<?) :: IO (MBox m) -> (m -> IO a) -> IO b
+mb <? f = mb >>= (? f)
 
 -- | Send a message to the actor.
 send :: Actor m -> m -> IO m
@@ -102,14 +103,14 @@ send a m = atomically $ mbox a `writeTChan` m >> return m
 (!) :: Actor m -> m -> IO m
 (!) = send
 
--- | Variant of (!) with actor inside the IO.
+-- | Variant of (!) with the actor inside the IO.
 (<!) :: IO (Actor m) -> m -> IO m
-a <! m = a >>= \a' -> a' ! m
+a <! m = a >>= (! m)
 
--- | Variant of (!) with message inside the IO.
+-- | Variant of (!) with the message inside the IO.
 (!>) :: Actor m -> IO m -> IO m
-a !> m = m >>= \m' -> a ! m'
+a !> m = m >>= (a !)
 
--- | Variant of (!) with actor and message inside the IO.
+-- | Variant of (!) with the actor and the message inside the IO.
 (<!>) :: IO (Actor m) -> IO m -> IO m
-a <!> m = a >>= \a' -> m >>= \m' -> a' ! m'
+a <!> m = a >>= \a' -> m >>= (a' !)
