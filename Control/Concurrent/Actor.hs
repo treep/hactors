@@ -13,7 +13,7 @@ import Control.Concurrent.STM.TChan
 import Control.Exception
 
 -- -----------------------------------------------------------------------------
--- * Processes.
+-- * Processes
 
 -- | The process is a VM's thread.
 type Process = ThreadId
@@ -47,13 +47,13 @@ say s = do
   putStrLn $ show me ++ ": " ++ s
 
 -- -----------------------------------------------------------------------------
--- * The message box.
+-- * The message box
 
 -- | The message box is represented by the STM's channel.
 type MBox m = TChan m
 
 -- -----------------------------------------------------------------------------
--- * Actors.
+-- * Actors
 
 -- | The actor is a process associated with the message box.
 -- 
@@ -61,12 +61,15 @@ type MBox m = TChan m
 -- accept.
 -- 
 data Actor m = Actor
-  { proc :: Process
-  , mbox :: MBox m
+  { proc :: Process                     -- ^ Actor's process (a thread).
+  , mbox :: MBox m                      -- ^ Actor's message box (a channel).
   }
 
 instance Eq (Actor m) where
   (Actor pid _) == (Actor pid' _) = pid == pid'
+
+instance Ord (Actor m) where
+  (Actor pid _) < (Actor pid' _) = pid < pid'
 
 instance Show (Actor m) where
   show (Actor pid _) = show pid
@@ -91,7 +94,7 @@ spawn :: (MBox m -> IO a) -> IO (Actor m)
 spawn = actor () . const
 
 -- -----------------------------------------------------------------------------
--- * Messages.
+-- * Messages
 
 infixl 1 ?, <?
 infixr 2 !, <!, !>, <!>
@@ -129,7 +132,7 @@ a !> m = m >>= (a !)
 a <!> m = a >>= \a' -> m >>= (a' !)
 
 -- -----------------------------------------------------------------------------
--- * Combine actors with messages.
+-- * Combine actors with messages
 
 -- | Create a new receiving actor.
 -- 
@@ -139,7 +142,7 @@ spawn_receive :: (m -> IO a) -> IO (Actor m)
 spawn_receive f = spawn (? f)
 
 -- -----------------------------------------------------------------------------
--- * Fault tolerance.
+-- * Fault tolerance
 -- 
 -- Where "fault" means having an exception in the thread. Still, AFAIK GHC's
 -- runtime can't survive if some thread has segmentation fault (e.g. perform
