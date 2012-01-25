@@ -6,10 +6,11 @@ all:
 install: all
 	runhaskell Setup install
 
-haddock: all
+doc: all
 	cabal haddock
+	mv ./dist/doc/html/hactors ./doc
 
-sdist:
+tar:
 	cabal sdist
 
 clean:
