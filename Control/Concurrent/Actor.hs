@@ -134,13 +134,17 @@ spawn_receive f = spawn (? f)
 -- (unsafeCoerce id)).
 --
 
--- | Perform an action ignoring any exception in it.
-tolerant :: IO () -> IO ()
-tolerant = handle $ \e -> let _ = e :: SomeException in return undefined
+-- | Perform an action, on exceptions perform a given action @f@.
+on_exception :: IO a -> IO a -> IO a
+on_exception f = handle $ \e -> let _ = e :: SomeException in f
+
+-- | Perform an action ignoring any exceptions in it.
+tolerant :: IO a -> IO a
+tolerant = on_exception $ return undefined
 
 -- | Perform an action, do @exit@ on exceptions.
 -- 
 -- XXX Bad name?
 -- 
 faultable :: IO () -> IO ()
-faultable = handle $ \e -> let _ = e :: SomeException in exit
+faultable = on_exception exit
