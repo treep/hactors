@@ -59,6 +59,12 @@ data Actor m = Actor
   , mbox :: MBox m
   }
 
+instance Eq (Actor m) where
+  (Actor pid _) == (Actor pid' _) = pid == pid'
+
+instance Show (Actor m) where
+  show (Actor pid _) = show pid
+
 -- | Create a new actor from a function, send the initial argument and the
 -- message box to this actor via function arguments.
 -- 
