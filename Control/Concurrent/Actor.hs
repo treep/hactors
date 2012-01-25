@@ -40,6 +40,12 @@ wait :: IO ()
 wait = forever $ sleep slice
   where slice = maxBound :: Int
 
+-- | Print string to @stdout@ with the current process ID prefix.
+say :: String -> IO ()
+say s = do
+  me <- self
+  putStrLn $ show me ++ ": " ++ s
+
 -- -----------------------------------------------------------------------------
 -- * The message box.
 
