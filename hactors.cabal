@@ -1,6 +1,6 @@
 
 name:                                   hactors
-version:                                0.0.3
+version:                                0.0.3.1
 synopsis:                               Practical actors for Haskell.
 category:                               Concurrency
 description:
