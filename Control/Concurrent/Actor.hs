@@ -115,6 +115,14 @@ mb <? f = mb >>= (? f)
 send :: Actor m -> m -> IO m
 send a m = atomically $ mbox a `writeTChan` m >> return m
 
+-- | Send a list of messages to the actor.
+send_all :: [m] -> Actor m -> IO ()
+send_all ms a = mapM_ (a !) ms
+
+-- | Send a message to all the actors from the list.
+send_to_all :: [Actor m] -> m -> IO m
+send_to_all as m = mapM_ (! m) as >> return m
+
 -- | Infix variant of @send@.
 (!) :: Actor m -> m -> IO m
 (!) = send
