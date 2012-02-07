@@ -10,7 +10,7 @@ import Control.Monad
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
-import Control.Exception
+import Control.Exception hiding ( onException )
 
 -- -----------------------------------------------------------------------------
 -- * Processes
@@ -82,7 +82,7 @@ instance Show (Actor m) where
 actor :: t -> (t -> MBox m -> IO a) -> IO (Actor m)
 actor i f = do
   m <- newTChanIO
-  p <- forkIO $ f i m >> return ()
+  p <- forkIO $ void $ f i m
   return $ Actor p m
 
 -- | Create a new actor from a function, send the message box to this actor via
@@ -107,7 +107,7 @@ receive mb f = forever $ atomically (readTChan mb) >>= f
 (?) :: MBox m -> (m -> IO a) -> IO b
 (?) = receive
 
--- | Variant of (?) with the message box inside the IO.
+-- | Variant of @?@ with the message box inside the IO.
 (<?) :: IO (MBox m) -> (m -> IO a) -> IO b
 mb <? f = mb >>= (? f)
 
@@ -116,26 +116,26 @@ send :: Actor m -> m -> IO m
 send a m = atomically $ mbox a `writeTChan` m >> return m
 
 -- | Send a list of messages to the actor.
-send_all :: [m] -> Actor m -> IO ()
-send_all ms a = mapM_ (a !) ms
+sendAll :: [m] -> Actor m -> IO ()
+sendAll ms a = mapM_ (a !) ms
 
 -- | Send a message to all the actors from the list.
-send_to_all :: [Actor m] -> m -> IO m
-send_to_all as m = mapM_ (! m) as >> return m
+sendToAll :: [Actor m] -> m -> IO m
+sendToAll as m = mapM_ (! m) as >> return m
 
 -- | Infix variant of @send@.
 (!) :: Actor m -> m -> IO m
 (!) = send
 
--- | Variant of (!) with the actor inside the IO.
+-- | Variant of @!@ with the actor inside the IO.
 (<!) :: IO (Actor m) -> m -> IO m
 a <! m = a >>= (! m)
 
--- | Variant of (!) with the message inside the IO.
+-- | Variant of @!@ with the message inside the IO.
 (!>) :: Actor m -> IO m -> IO m
 a !> m = m >>= (a !)
 
--- | Variant of (!) with the actor and the message inside the IO.
+-- | Variant of @!@ with the actor and the message inside the IO.
 (<!>) :: IO (Actor m) -> IO m -> IO m
 a <!> m = a >>= \a' -> m >>= (a' !)
 
@@ -146,8 +146,8 @@ a <!> m = a >>= \a' -> m >>= (a' !)
 -- 
 -- This function calls @forkIO@.
 -- 
-spawn_receive :: (m -> IO a) -> IO (Actor m)
-spawn_receive f = spawn (? f)
+spawnReceive :: (m -> IO a) -> IO (Actor m)
+spawnReceive f = spawn (? f)
 
 -- -----------------------------------------------------------------------------
 -- * Fault tolerance
@@ -158,16 +158,16 @@ spawn_receive f = spawn (? f)
 --
 
 -- | Perform an action, on exceptions perform a given action @f@.
-on_exception :: IO a -> IO a -> IO a
-on_exception f = handle $ \e -> let _ = e :: SomeException in f
+onException :: IO a -> IO a -> IO a
+onException f = handle $ \e -> let _ = e :: SomeException in f
 
 -- | Perform an action ignoring any exceptions in it.
 tolerant :: IO a -> IO a
-tolerant = on_exception $ return undefined
+tolerant = onException $ return undefined
 
 -- | Perform an action, do @exit@ on exceptions.
 -- 
 -- XXX Bad name?
 -- 
 faultable :: IO () -> IO ()
-faultable = on_exception exit
+faultable = onException exit

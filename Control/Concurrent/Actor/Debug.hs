@@ -5,7 +5,7 @@
 -- 
 module Control.Concurrent.Actor.Debug where
 
-import Control.Concurrent.Actor hiding ( receive, spawn_receive )
+import Control.Concurrent.Actor hiding ( receive, spawnReceive )
 
 import Control.Monad
 import Control.Monad.STM
@@ -18,5 +18,5 @@ receive a f = forever $ do
   atomically (readTChan a) >>= f
 
 -- | Variant of @spawn_receive@ with the test printing.
-spawn_receive :: (m -> IO a) -> IO (Actor m)
-spawn_receive f = spawn $ \m -> receive m f
+spawnReceive :: (m -> IO a) -> IO (Actor m)
+spawnReceive f = spawn $ \m -> receive m f
