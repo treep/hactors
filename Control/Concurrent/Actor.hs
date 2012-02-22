@@ -6,6 +6,7 @@
 -- 
 module Control.Concurrent.Actor where
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.STM
 import Control.Concurrent
@@ -208,3 +209,14 @@ swarm xs f = do
 -- 
 swarm' :: (MBox m -> IO a) -> IO (Swarm m)
 swarm' = swarm [] . const
+
+-- -----------------------------------------------------------------------------
+-- * MapReduce with swarms.
+
+-- | Create a new swarm from a map function (@mf@), perform reducing on it
+-- message box with reduce function (@rf@).
+-- 
+mapReduce :: [t] -> (t -> MBox m -> IO a) -> ([m] -> r) -> IO r
+mapReduce xs mf rf = do
+  sw <- swarm xs mf
+  atomically $ rf <$> forM xs (const $ readTChan $ swarmMBox sw)
