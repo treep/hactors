@@ -58,11 +58,11 @@ type MBox m = TChan m
 -- | The actor is a process associated with the message box.
 -- 
 -- Note that the actor is parameterized by the type of message that it can
--- accept.
+-- use.
 -- 
 data Actor m = Actor
-  { proc :: Process                     -- ^ Actor's process (a thread).
-  , mbox :: MBox m                      -- ^ Actor's message box (a channel).
+  { actorProcess :: Process             -- ^ Actor's process.
+  , actorMBox :: MBox m                 -- ^ Actor's message box.
   }
 
 instance Eq (Actor m) where
@@ -113,7 +113,7 @@ mb <? f = mb >>= (? f)
 
 -- | Send a message to the actor.
 send :: Actor m -> m -> IO m
-send a m = atomically $ mbox a `writeTChan` m >> return m
+send a m = atomically $ actorMBox a `writeTChan` m >> return m
 
 -- | Send a list of messages to the actor.
 sendAll :: [m] -> Actor m -> IO ()
@@ -171,3 +171,40 @@ tolerant = onException $ return undefined
 -- 
 faultable :: IO () -> IO ()
 faultable = onException exit
+
+-- -----------------------------------------------------------------------------
+-- * Swarms
+
+-- | Swarm is a group of processes sharing a message box.
+data Swarm m = Swarm
+  { swarmProcesses :: [Process]         -- ^ A list of swarm's processes.
+  , swarmMBox :: MBox m                 -- ^ Swarm's message box.
+  }
+
+instance Eq (Swarm m) where
+  (Swarm pids _) == (Swarm pids' _) = pids == pids'
+
+instance Ord (Swarm m) where
+  (Swarm pids _) < (Swarm pids' _) = pids < pids'
+
+instance Show (Swarm m) where
+  show (Swarm pids _) = show pids
+
+-- | Create a new swarm from a function, send the initial arguments and the
+-- message boxes to each swarm's process via function arguments.
+-- 
+-- This function calls @forkIO@ several times.
+-- 
+swarm :: [t] -> (t -> MBox m -> IO a) -> IO (Swarm m)
+swarm xs f = do
+  m <- newTChanIO
+  ps <- forM xs $ forkIO . void . flip f m
+  return $ Swarm ps m
+
+-- | Create a new swarm from a function, send the message boxes to each swarm's 
+-- process via function arguments.
+-- 
+-- This function calls @forkIO@ several times.
+-- 
+swarm' :: (MBox m -> IO a) -> IO (Swarm m)
+swarm' = swarm [] . const
